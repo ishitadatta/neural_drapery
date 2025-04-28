@@ -25,26 +25,48 @@ export class ClothPhysics {
     }
   
     initParticles() {
+        const ropeHeight = 0.3; // Match the clothesline y-position
+        const clothWidth = (this.cols - 1) * this.spacing;
+        const startX = -clothWidth / 2;
       for (let y = 0; y < this.rows; y++) {
         for (let x = 0; x < this.cols; x++) {
-          this.particles.push({
-            pos: [-0.25 + x * this.spacing, 0.25 - y * this.spacing],
-            prev: [-0.6 + x * this.spacing, 0.4 - y * this.spacing],
-            fixed: (y === 0)
+          
+            this.particles.push({
+            pos: [startX + x * this.spacing, ropeHeight - y * this.spacing],
+            prev: [startX + x * this.spacing, ropeHeight - y * this.spacing],
+            fixed: (y === 0) // Only the top row fixed
+            
+
           });
         }
       }
     }
   
     initSprings() {
-      for (let y = 0; y < this.rows; y++) {
-        for (let x = 0; x < this.cols; x++) {
-          const i = y * this.cols + x;
-          if (x < this.cols - 1) this.springs.push([i, i + 1]);
-          if (y < this.rows - 1) this.springs.push([i, i + this.cols]);
+        for (let y = 0; y < this.rows; y++) {
+          for (let x = 0; x < this.cols; x++) {
+            const i = y * this.cols + x;
+      
+            // Structural springs
+            if (x < this.cols - 1) this.springs.push({ indices: [i, i + 1], restLength: this.spacing, stiffness: 1.0 });
+            if (y < this.rows - 1) this.springs.push({ indices: [i, i + this.cols], restLength: this.spacing, stiffness: 1.0 });
+      
+            // Shear springs
+            if (x < this.cols - 1 && y < this.rows - 1) {
+              this.springs.push({ indices: [i, i + this.cols + 1], restLength: Math.sqrt(2) * this.spacing, stiffness: 0.5 });
+            }
+            if (x > 0 && y < this.rows - 1) {
+              this.springs.push({ indices: [i, i + this.cols - 1], restLength: Math.sqrt(2) * this.spacing, stiffness: 0.5 });
+            }
+      
+            // Bend springs
+            if (x < this.cols - 2) this.springs.push({ indices: [i, i + 2], restLength: this.spacing * 2, stiffness: 0.2 });
+            if (y < this.rows - 2) this.springs.push({ indices: [i, i + this.cols * 2], restLength: this.spacing * 2, stiffness: 0.2 });
+          }
         }
       }
-    }
+      
+      
   
     simulate() {
       for (const p of this.particles) {
@@ -66,19 +88,19 @@ export class ClothPhysics {
         }
       }
   
-      for (let s = 0; s < 5; s++) {
+      for (let s = 0; s < 5; s++) { // 5 constraint iterations
         for (const spring of this.springs) {
-          const p1 = this.particles[spring[0]];
-          const p2 = this.particles[spring[1]];
-  
+          const [i1, i2] = spring.indices;
+          const p1 = this.particles[i1];
+          const p2 = this.particles[i2];
+      
           const dx = p2.pos[0] - p1.pos[0];
           const dy = p2.pos[1] - p1.pos[1];
           const dist = Math.sqrt(dx * dx + dy * dy);
-          const restLength = this.spacing;
-  
-          const diff = (dist - restLength) / dist;
-          const correction = 0.5 * diff;
-  
+      
+          const diff = (dist - spring.restLength) / dist;
+          const correction = 0.5 * diff * spring.stiffness;
+      
           if (!p1.fixed) {
             p1.pos[0] += correction * dx;
             p1.pos[1] += correction * dy;
@@ -88,7 +110,7 @@ export class ClothPhysics {
             p2.pos[1] -= correction * dy;
           }
         }
-      }
+      }      
     }
   
     draw() {
