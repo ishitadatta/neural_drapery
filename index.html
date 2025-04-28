@@ -1,154 +1,18 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Cloth with Wind</title>
+  <meta charset="UTF-8">
+  <title>Sunset Cloth Scene</title>
   <style>
-    body { margin: 0; overflow: hidden; }
-    canvas { display: block; background: #eee; }
+    body { margin: 0; overflow: hidden; background: black; }
+    canvas { width: 100vw; height: 100vh; display: block; }
   </style>
 </head>
 <body>
-  <canvas id="myCanvas"></canvas>
+  <canvas id="glcanvas"></canvas>
 
-  <script>
-    const canvas = document.getElementById('myCanvas');
-    const ctx = canvas.getContext('2d');
+  <!-- JUST LOAD main.js PROPERLY -->
+  <script type="module" src="./main.js"></script>
 
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-
-    const particles = [];
-    const springs = [];
-
-    const gridWidth = 15;
-    const gridHeight = 10;
-    const spacing = 30;
-
-    const startX = canvas.width / 2 - (gridWidth - 1) * spacing / 2;
-    const startY = 100;
-
-    for (let y = 0; y < gridHeight; y++) {
-      for (let x = 0; x < gridWidth; x++) {
-        particles.push({
-          x: startX + x * spacing,
-          y: startY + y * spacing,
-          radius: 5,
-          vx: 0,
-          vy: 0,
-          gravity: 0.5,
-          fixed: (y === 0 && (x % 2 === 0)),
-        });
-      }
-    }
-
-    for (let y = 0; y < gridHeight; y++) {
-      for (let x = 0; x < gridWidth; x++) {
-        const idx = y * gridWidth + x;
-
-        if (x < gridWidth - 1) {
-          springs.push({
-            p1: particles[idx],
-            p2: particles[idx + 1],
-            restLength: spacing,
-            stiffness: 0.8,
-          });
-        }
-        if (y < gridHeight - 1) {
-          springs.push({
-            p1: particles[idx],
-            p2: particles[idx + gridWidth],
-            restLength: spacing,
-            stiffness: 0.2,
-          });
-        }
-      // Diagonal spring (down-right)
-    if (x < gridWidth - 1 && y < gridHeight - 1) {
-      springs.push({
-        p1: particles[idx],
-        p2: particles[idx + gridWidth + 1],
-        restLength: Math.sqrt(spacing * spacing * 2),
-        stiffness: 0.7,
-      });
-    }
-
-    // Diagonal spring (down-left)
-    if (x > 0 && y < gridHeight - 1) {
-      springs.push({
-        p1: particles[idx],
-        p2: particles[idx + gridWidth - 1],
-        restLength: Math.sqrt(spacing * spacing * 2),
-        stiffness: 0.7,
-      });
-    }
-  }
-}
-
-    function applySprings() {
-      for (const s of springs) {
-        const dx = s.p2.x - s.p1.x;
-        const dy = s.p2.y - s.p1.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        const difference = s.restLength - distance;
-        const percent = (difference / distance) * 0.5 * s.stiffness;
-        const offsetX = dx * percent;
-        const offsetY = dy * percent;
-
-        if (!s.p1.fixed) {
-          s.p1.x -= offsetX;
-          s.p1.y -= offsetY;
-        }
-        if (!s.p2.fixed) {
-          s.p2.x += offsetX;
-          s.p2.y += offsetY;
-        }
-      }
-    }
-
-    function draw() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  applySprings();
-
-  const windStrength = Math.sin(Date.now() * 0.001) * 0.5; // fluttering wind
-
-  for (const p of particles) {
-    if (!p.fixed) {
-      // APPLY FORCES
-      p.vy += p.gravity;
-      p.vx += windStrength * 0.5;
-
-      // MOVE
-      p.x += p.vx;
-      p.y += p.vy;
-
-      // DAMPING
-      p.vx *= 0.9;
-      p.vy *= 0.99;
-
-    }
-    if (p.y > canvas.height - 20) {
-    p.y = canvas.height - 20;
-    p.vy *= -0.3; // little bounce effect
-    }
-
-    ctx.fillStyle = p.fixed ? '#e74c3c' : '#2ecc71';
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  ctx.strokeStyle = '#888';
-  for (const s of springs) {
-    ctx.beginPath();
-    ctx.moveTo(s.p1.x, s.p1.y);
-    ctx.lineTo(s.p2.x, s.p2.y);
-    ctx.stroke();
-  }
-
-  requestAnimationFrame(draw);
-}
-
-    draw();
-  </script>
 </body>
 </html>
