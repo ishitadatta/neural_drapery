@@ -1,7 +1,7 @@
 // main.js — sets up cloth particles, simulation, and drag interaction
 
-import { Vec3, Particle, Spring } from './cloth.js';
-import { XPBDClothSim } from './sim.js';
+import { Vec3, Particle, Spring } from './sim_webgl/cloth.js';
+import { XPBDClothSim } from './sim_webgl/sim.js';
 
 
 let canvas, ctx;
