@@ -1,11 +1,11 @@
-// modules/ClothPhysics.js — corrected and enhanced version!
-
 export class ClothPhysics {
-    constructor(gl) {
+    constructor(gl, xOffset = 0.0, type = "towel") {
       this.gl = gl;
+      this.offset = xOffset;
+      this.type = type;
   
       this.cols = 12;
-      this.rows = 8;
+      this.rows = (type === "shorts") ? 6 : 8; // Shorts smaller
       this.spacing = 0.04;
       this.gravity = [0, -0.02];
       this.windStrength = 0.02;
@@ -17,56 +17,59 @@ export class ClothPhysics {
       this.initSprings();
   
       this.vertexShader = createSimpleVertexShader(gl);
-      this.fragmentShader = createSimpleFragmentShader(gl, [1.0, 1.0, 1.0]);
+      this.fragmentShader = createSimpleFragmentShader(gl);
       this.program = createProgram(gl, this.vertexShader, this.fragmentShader);
   
       this.positionBuffer = gl.createBuffer();
-      this.positionAttribLocation = gl.getAttribLocation(this.program, 'aPosition');
+      this.uvBuffer = gl.createBuffer();
     }
   
     initParticles() {
-        const ropeHeight = 0.3; // Match the clothesline y-position
-        const clothWidth = (this.cols - 1) * this.spacing;
-        const startX = -clothWidth / 2;
       for (let y = 0; y < this.rows; y++) {
         for (let x = 0; x < this.cols; x++) {
-          
-            this.particles.push({
-            pos: [startX + x * this.spacing, ropeHeight - y * this.spacing],
-            prev: [startX + x * this.spacing, ropeHeight - y * this.spacing],
-            fixed: (y === 0) // Only the top row fixed
-            
-
+          const fixed = this.isFixedPoint(x, y);
+          const baseX = this.offset + (-0.25 + x * this.spacing);
+          const baseY = 0.25 - y * this.spacing;
+          this.particles.push({
+            pos: [baseX, baseY],
+            prev: [baseX, baseY],
+            uv: [x / (this.cols - 1), y / (this.rows - 1)],
+            fixed: fixed
           });
         }
       }
     }
   
+    isFixedPoint(x, y) {
+      if (y !== 0) return false; // Only top row can be fixed
+  
+      if (this.type === "towel") {
+        return true; // Fix all top points
+      } else if (this.type === "tshirt") {
+        return (x >= 4 && x <= 7); // Shoulders and neck
+      } else if (this.type === "shorts") {
+        return (x >= 3 && x <= 8); // Wider hold
+      }
+      return true;
+    }
+  
     initSprings() {
-        for (let y = 0; y < this.rows; y++) {
-          for (let x = 0; x < this.cols; x++) {
-            const i = y * this.cols + x;
-      
-            // Structural springs
-            if (x < this.cols - 1) this.springs.push({ indices: [i, i + 1], restLength: this.spacing, stiffness: 1.0 });
-            if (y < this.rows - 1) this.springs.push({ indices: [i, i + this.cols], restLength: this.spacing, stiffness: 1.0 });
-      
-            // Shear springs
-            if (x < this.cols - 1 && y < this.rows - 1) {
-              this.springs.push({ indices: [i, i + this.cols + 1], restLength: Math.sqrt(2) * this.spacing, stiffness: 0.5 });
-            }
-            if (x > 0 && y < this.rows - 1) {
-              this.springs.push({ indices: [i, i + this.cols - 1], restLength: Math.sqrt(2) * this.spacing, stiffness: 0.5 });
-            }
-      
-            // Bend springs
-            if (x < this.cols - 2) this.springs.push({ indices: [i, i + 2], restLength: this.spacing * 2, stiffness: 0.2 });
-            if (y < this.rows - 2) this.springs.push({ indices: [i, i + this.cols * 2], restLength: this.spacing * 2, stiffness: 0.2 });
+      for (let y = 0; y < this.rows; y++) {
+        for (let x = 0; x < this.cols; x++) {
+          const i = y * this.cols + x;
+          if (x < this.cols - 1) this.springs.push({ indices: [i, i + 1], restLength: this.spacing, stiffness: 1.0 });
+          if (y < this.rows - 1) this.springs.push({ indices: [i, i + this.cols], restLength: this.spacing, stiffness: 1.0 });
+          if (x < this.cols - 1 && y < this.rows - 1) {
+            this.springs.push({ indices: [i, i + this.cols + 1], restLength: Math.sqrt(2) * this.spacing, stiffness: 0.5 });
           }
+          if (x > 0 && y < this.rows - 1) {
+            this.springs.push({ indices: [i, i + this.cols - 1], restLength: Math.sqrt(2) * this.spacing, stiffness: 0.5 });
+          }
+          if (x < this.cols - 2) this.springs.push({ indices: [i, i + 2], restLength: 2 * this.spacing, stiffness: 0.2 });
+          if (y < this.rows - 2) this.springs.push({ indices: [i, i + this.cols * 2], restLength: 2 * this.spacing, stiffness: 0.2 });
         }
       }
-      
-      
+    }
   
     simulate() {
       for (const p of this.particles) {
@@ -77,7 +80,7 @@ export class ClothPhysics {
           p.prev[0] = p.pos[0];
           p.prev[1] = p.pos[1];
   
-          p.pos[0] += vx * 0.99; // damping
+          p.pos[0] += vx * 0.99;
           p.pos[1] += vy * 0.99;
   
           p.pos[0] += this.gravity[0];
@@ -88,19 +91,19 @@ export class ClothPhysics {
         }
       }
   
-      for (let s = 0; s < 5; s++) { // 5 constraint iterations
+      for (let s = 0; s < 5; s++) {
         for (const spring of this.springs) {
           const [i1, i2] = spring.indices;
           const p1 = this.particles[i1];
           const p2 = this.particles[i2];
-      
+  
           const dx = p2.pos[0] - p1.pos[0];
           const dy = p2.pos[1] - p1.pos[1];
           const dist = Math.sqrt(dx * dx + dy * dy);
-      
+  
           const diff = (dist - spring.restLength) / dist;
           const correction = 0.5 * diff * spring.stiffness;
-      
+  
           if (!p1.fixed) {
             p1.pos[0] += correction * dx;
             p1.pos[1] += correction * dy;
@@ -110,13 +113,15 @@ export class ClothPhysics {
             p2.pos[1] -= correction * dy;
           }
         }
-      }      
+      }
     }
   
     draw() {
       const gl = this.gl;
-  
+    
       const positions = [];
+      const uvs = [];
+  
       for (let y = 0; y < this.rows - 1; y++) {
         for (let x = 0; x < this.cols - 1; x++) {
           const i = y * this.cols + x;
@@ -125,33 +130,56 @@ export class ClothPhysics {
           const p2 = this.particles[i + this.cols];
           const p3 = this.particles[i + this.cols + 1];
   
-          positions.push(
-            p0.pos[0], p0.pos[1],
-            p1.pos[0], p1.pos[1],
-            p2.pos[0], p2.pos[1],
+          // First triangle
+          positions.push(p0.pos[0], p0.pos[1]);
+          uvs.push(p0.uv[0], p0.uv[1]);
   
-            p2.pos[0], p2.pos[1],
-            p1.pos[0], p1.pos[1],
-            p3.pos[0], p3.pos[1]
-          );
+          positions.push(p1.pos[0], p1.pos[1]);
+          uvs.push(p1.uv[0], p1.uv[1]);
+  
+          positions.push(p2.pos[0], p2.pos[1]);
+          uvs.push(p2.uv[0], p2.uv[1]);
+  
+          // Second triangle
+          positions.push(p2.pos[0], p2.pos[1]);
+          uvs.push(p2.uv[0], p2.uv[1]);
+  
+          positions.push(p1.pos[0], p1.pos[1]);
+          uvs.push(p1.uv[0], p1.uv[1]);
+  
+          positions.push(p3.pos[0], p3.pos[1]);
+          uvs.push(p3.uv[0], p3.uv[1]);
         }
       }
   
+      gl.useProgram(this.program);
+  
       gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
       gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.DYNAMIC_DRAW);
+      const posLoc = gl.getAttribLocation(this.program, 'aPosition');
+      gl.enableVertexAttribArray(posLoc);
+      gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
   
-      gl.useProgram(this.program);
-      gl.enableVertexAttribArray(this.positionAttribLocation);
-      gl.vertexAttribPointer(this.positionAttribLocation, 2, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.uvBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(uvs), gl.DYNAMIC_DRAW);
+      const uvLoc = gl.getAttribLocation(this.program, 'aUv');
+      gl.enableVertexAttribArray(uvLoc);
+      gl.vertexAttribPointer(uvLoc, 2, gl.FLOAT, false, 0, 0);
   
       gl.drawArrays(gl.TRIANGLES, 0, positions.length / 2);
     }
   }
   
+  // ==============================
+  // SHADERS
+  // ==============================
   function createSimpleVertexShader(gl) {
     const source = `
       attribute vec2 aPosition;
+      attribute vec2 aUv;
+      varying vec2 vUv;
       void main() {
+        vUv = aUv;
         gl_Position = vec4(aPosition, 0.0, 1.0);
       }
     `;
@@ -161,11 +189,15 @@ export class ClothPhysics {
     return shader;
   }
   
-  function createSimpleFragmentShader(gl, color) {
+  function createSimpleFragmentShader(gl) {
     const source = `
       precision mediump float;
+      varying vec2 vUv;
       void main() {
-        gl_FragColor = vec4(${color[0]}, ${color[1]}, ${color[2]}, 1.0);
+        float stripe = step(0.95, mod(vUv.x * 20.0, 1.0));
+        vec3 pink = vec3(1.0, 0.4, 0.7);
+        vec3 color = mix(vec3(1.0), pink, stripe);
+        gl_FragColor = vec4(color, 1.0);
       }
     `;
     const shader = gl.createShader(gl.FRAGMENT_SHADER);
@@ -181,3 +213,4 @@ export class ClothPhysics {
     gl.linkProgram(program);
     return program;
   }
+  
