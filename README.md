@@ -1,2 +1,2 @@
 # neural_drapery
-Neural Drapery: Generative Garment Simulation from Signed Distance Fields
+Neural Drapery: Garment Simulation from Signed Distance Fields and postion-based dynamics
