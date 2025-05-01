@@ -5,7 +5,7 @@ export class ClothPhysics {
       this.type = type;
   
       this.cols = 12;
-      this.rows = (type === "shorts") ? 6 : 8; // Shorts smaller
+      this.rows = (type === "shorts") ? 6 : 8; 
       this.spacing = 0.04;
       this.gravity = [0, -0.02];
       this.windStrength = 0.02;
@@ -28,8 +28,8 @@ export class ClothPhysics {
       for (let y = 0; y < this.rows; y++) {
         for (let x = 0; x < this.cols; x++) {
           const fixed = this.isFixedPoint(x, y);
-          const baseX = this.offset + (-0.25 + x * this.spacing);
-          const baseY = 0.25 - y * this.spacing;
+          const baseX = this.offset + (-0.3 + x * this.spacing);
+          const baseY = 0.3 - y * this.spacing;
           this.particles.push({
             pos: [baseX, baseY],
             prev: [baseX, baseY],
@@ -41,14 +41,14 @@ export class ClothPhysics {
     }
   
     isFixedPoint(x, y) {
-      if (y !== 0) return false; // Only top row can be fixed
+      if (y !== 0) return false; 
   
       if (this.type === "towel") {
-        return true; // Fix all top points
+        return true; 
       } else if (this.type === "tshirt") {
-        return (x >= 4 && x <= 7); // Shoulders and neck
+        return (x >= 4 && x <= 7); 
       } else if (this.type === "shorts") {
-        return (x >= 3 && x <= 8); // Wider hold
+        return (x >= 3 && x <= 8); 
       }
       return true;
     }
@@ -130,7 +130,7 @@ export class ClothPhysics {
           const p2 = this.particles[i + this.cols];
           const p3 = this.particles[i + this.cols + 1];
   
-          // First triangle
+          
           positions.push(p0.pos[0], p0.pos[1]);
           uvs.push(p0.uv[0], p0.uv[1]);
   
@@ -140,7 +140,7 @@ export class ClothPhysics {
           positions.push(p2.pos[0], p2.pos[1]);
           uvs.push(p2.uv[0], p2.uv[1]);
   
-          // Second triangle
+          
           positions.push(p2.pos[0], p2.pos[1]);
           uvs.push(p2.uv[0], p2.uv[1]);
   
